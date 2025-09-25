@@ -100,10 +100,19 @@ status() {
     echo "====================="
     
     # Check if Ollama is running
-    if systemctl is-active --quiet ollama; then
-        echo "✅ Ollama service: RUNNING"
+    # Cross-platform service check
+    if command -v pacman >/dev/null 2>&1 && uname -r | grep -q "MINGW\|MSYS"; then
+        if pgrep -x "ollama" > /dev/null; then
+            echo "✅ Ollama service: RUNNING"
+        else
+            echo "❌ Ollama service: STOPPED"
+        fi
     else
-        echo "❌ Ollama service: STOPPED"
+        if systemctl is-active --quiet ollama; then
+            echo "✅ Ollama service: RUNNING"
+        else
+            echo "❌ Ollama service: STOPPED"
+        fi
     fi
     
     local active_model=$(get_config '.active_model')

@@ -8,11 +8,23 @@ start_service() {
     echo "🚀 Starting AI Assistant services..."
     
     # Start Ollama if not running
-    if ! systemctl is-active --quiet ollama; then
-        sudo systemctl start ollama
-        echo "✅ Ollama service started"
+    # Check if we're on MSYS2 (Windows) or Linux
+    if command -v pacman >/dev/null 2>&1 && uname -r | grep -q "MINGW\|MSYS"; then
+        # MSYS2 - start Ollama directly
+        if ! pgrep -x "ollama" > /dev/null; then
+            ollama serve &
+            echo "✅ Ollama service started"
+        else
+            echo "✅ Ollama service already running"
+        fi
     else
-        echo "✅ Ollama service already running"
+        # Linux - use systemctl
+        if ! systemctl is-active --quiet ollama; then
+            sudo systemctl start ollama
+            echo "✅ Ollama service started"
+        else
+            echo "✅ Ollama service already running"
+        fi
     fi
     
     # Start API server
