@@ -206,13 +206,14 @@ handle_config() {
             ;;
     esac
 }
+
 # ===== Main Argument Parsing =====
 if [ "$#" -eq 0 ]; then
     show_help
     exit 0
 fi
 
-# Handle commands
+# Handle commands - ALL commands must exit before query handling
 case $1 in
     help|-h|--help)
         show_help
@@ -221,15 +222,15 @@ case $1 in
     config)
         shift
         handle_config "$@"
-        exit 0
+        exit 0  # MUST exit
         ;;
     models|list)
         show_models
-        exit 0
+        exit 0  # MUST exit
         ;;
     ps)
         ollama ps
-        exit 0
+        exit 0  # MUST exit
         ;;
     pull)
         if [ -n "$2" ]; then
@@ -237,13 +238,26 @@ case $1 in
         else
             echo "Usage: $0 pull <model-name>"
         fi
-        exit 0
+        exit 0  # MUST exit
+        ;;
+    free-mem|freemem)
+        if [ -f ~/free-mem-restart.sh ]; then
+            ~/free-mem-restart.sh
+        else
+            echo "🧹 Freeing memory and restarting Ollama..."
+            sudo systemctl stop ollama
+            sudo pkill -f ollama 2>/dev/null || true
+            sudo sync && echo 3 | sudo tee /proc/sys/vm/drop_caches > /dev/null 2>&1 || true
+            sudo systemctl start ollama
+            echo "✅ Memory cleared and Ollama restarted"
+        fi
+        exit 0  # MUST exit
         ;;
     host)
         AS_CLIENT=false
         ENDPOINT="http://localhost:11434/api/generate"
         echo "Switched to host mode (local)"
-        # DO NOT EXIT - fall through to process query
+        # Continue to query handling - NO exit
         ;;
     client)
         if [ -f "$CONFIG_FILE" ]; then
@@ -255,7 +269,7 @@ case $1 in
             else
                 echo "Switched to client mode -> $TARGET_IP:$TARGET_PORT"
             fi
-            # DO NOT EXIT - fall through to process query
+            # Continue to query handling - NO exit
         else
             echo "No target configuration found. Run '$0 config set <ip:port>' first."
             exit 1
